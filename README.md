@@ -10,7 +10,7 @@ Dissector currently dissects the following message types*:
 *Message type is the first byte of the packets
 
 NOTE: This dissector is based entirely on my try of reverse engineering the traffic I could generate
-with the mouse and driver GUI, some fields/features might be inaccurate or just plain wrong.
+with the mouse and driver's GUI, some fields/features might be inaccurate or just plain wrong.
 
 
 ## Usage
