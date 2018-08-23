@@ -46,6 +46,21 @@ local effect_speed_vals = {
         [3]  = "Fast",
 }
 
+local key_id_vals = {
+        [1]  = "Left Button",
+        [2]  = "Right Button",
+        [3]  = "Middle Button",
+        [4]  = "Mouse 4 (Forward)",
+        [5]  = "Mouse 5 (Backward)",
+        [6]  = "Mouse Wheel Left",
+        [7]  = "Mouse Wheel Right",
+        [8]  = "Scroll Up",
+        [9]  = "Scroll Down",
+       [10]  = "Plus Button",
+       [11]  = "Minus Button",
+       [12]  = "Mouse 12 (Menu)",
+}
+
 
 local roccat_kone_xtd = Proto("konextd","Roccat Kone XTD USB Protocol")
 
@@ -90,6 +105,15 @@ local colorindex = ProtoField.new("Color Index", "konextd.colorindx", ftypes.UIN
 local colorred = ProtoField.new("Red", "konextd.red", ftypes.UINT8)
 local colorgreen = ProtoField.new("Green", "konextd.green", ftypes.UINT8)
 local colorblue = ProtoField.new("Blue", "konextd.blue", ftypes.UINT8)
+
+-- Key Assignment
+local standardkeys = ProtoField.new("Standard Button Assignments", "konextd.standardkeys", ftypes.NONE)
+local easyshiftkeys = ProtoField.new("Easy-Shift[+] Button Assignments", "konextd.easyshiftkeys", ftypes.NONE)
+local keyid = ProtoField.new("Key # ", "konextd.key.id", ftypes.NONE)
+local keyvassignment = ProtoField.new("Key Assignment", "konextd.key.assignment", ftypes.UINT8) -- TODO values
+local keyshortcutmodifiers = ProtoField.new("Shortcut Modifiers", "konextd.key.shortcut.modifiers", ftypes.UINT8) -- TODO dissect bits
+local keyshortcutbutton = ProtoField.new("Shortcut Button", "konextd.key.shortcut.button", ftypes.UINT8) -- TODO values
+
 -- Statistics
 local distance = ProtoField.new("Distance", "konextd.distance", ftypes.UINT8)
 local clicks = ProtoField.new("Clicks", "konextd.clicks", ftypes.UINT8)
@@ -149,6 +173,12 @@ roccat_kone_xtd.fields = { data,
     led2on,
     led3on,
     led4on,
+    standardkeys,
+    easyshiftkeys,
+    keyid,
+    keyvassignment,
+    keyshortcutmodifiers,
+    keyshortcutbutton,
     checksum
 }
 
@@ -250,6 +280,23 @@ local function dissect_led_color(tvbuf,pktinfo,tree,offest,led_num)
     return offset;
 end
 
+local function dissect_key_assignment(tvbuf,pktinfo,tree,offest,key_num)
+    -- TODO Resolve key_num to button
+    ti = tree:add(keyid,tvbuf:range(offset,3))
+    ti:set_text("Key " .. key_num .. " (" .. key_id_vals[key_num] ..")")
+
+    ti:add_le(keyvassignment, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    ti:add_le(keyshortcutmodifiers, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    ti:add_le(keyshortcutbutton, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    return offset;
+end
+
 local function sum_bytes(pktinfo,tvb)
     len = tvb:len()
     total = 0
@@ -259,11 +306,41 @@ local function sum_bytes(pktinfo,tvb)
     return total
 end
 
+local function dissect_konextd_msg_7(tvbuf,pktinfo,tree)
+    offset = 2
+    value = tvbuf:range(offset,1):uint()
+    tree:add_le(profile, tvbuf:range(offset,1))
+    pktinfo.cols.info:set("Updating Kone XTD Profile " .. value .." buttons assignment")
+    offset = offset + 1
+
+    -- Standard Button Assignments
+    subtree = tree:add(standardkeys,tvbuf:range(offset,36))
+    for key_num=1, 12 do
+        offset = dissect_key_assignment(tvbuf,pktinfo,subtree,offest,key_num)
+    end
+    
+    -- Easy-Shift Button Assignments
+    subtree = tree:add(easyshiftkeys,tvbuf:range(offset,36))
+    for key_num=1, 12 do
+        offset = dissect_key_assignment(tvbuf,pktinfo,subtree,offest,key_num)
+    end
+
+    calc_sum = sum_bytes(pktinfo,tvbuf)
+    reported_sum = tvbuf:range(offset,2):le_uint()
+    ti = tree:add_le(checksum, tvbuf:range(offset,2))
+    if calc_sum == reported_sum then
+        ti:append_text(" (Correct)")
+    else
+        --TODO: Expert info
+        ti:append_text(" (Incorrect, should be 0x" .. string.format("%04x",tvbuf:range(offset,2):le_uint()) .. ")")
+    end
+end
+
 local function dissect_konextd_msg_6(tvbuf,pktinfo,tree)
     offset = 2
     tree:add_le(profile, tvbuf:range(offset,1))
     value = tvbuf:range(offset,1):uint()
-    pktinfo.cols.info:set("Updating Kone XTD profile " .. value)
+    pktinfo.cols.info:set("Updating Kone XTD Profile " .. value .. " settings")
     offset = offset + 1
 
     tree:add_le(advsense, tvbuf:range(offset,1))
@@ -412,7 +489,7 @@ end
 
 local function heur_dissect_control_konextd(tvbuf,pktinfo,root)
     pktlen = tvbuf:len()
-    if pktlen ~= 43 then
+    if pktlen ~= 43 and pktlen ~= 77 then
         return 0;
     end
 
@@ -425,6 +502,8 @@ local function heur_dissect_control_konextd(tvbuf,pktinfo,root)
     value = tvbuf:range(offset,1):int()
     if value == 0x06 then
         dissect_konextd_msg_6(tvbuf,pktinfo,tree)
+    elseif value == 0x07 then
+        dissect_konextd_msg_7(tvbuf,pktinfo,tree)
     else
         data_dis(tvbuf,pktinfo,root);
     end
