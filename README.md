@@ -3,7 +3,7 @@ Wireshark dissector for Roccat Kone XTD USB protocol
 
 Dissector currently dissects the following message types*:
 * Message Type 1: General mouse interrupts (moving,clicking,scrolling)
-* Message Type 3: Statistics reports (Distance moved, Amount of clicks/scrolls)
+* Message Type 3: Uages reports (Distance moved statistics, Amount of clicks/scrolls statistics, Profile changes)
 * Message Type 5: Set active profile
 * Message Type 6: Profile settings updates (colors changes, DPI settings etc)
 * Message Type 7: Profile buttons updates (Standard/Easy-Shift Button Assignment)
