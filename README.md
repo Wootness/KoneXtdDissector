@@ -1,4 +1,4 @@
-# KoneXtdDissector
+# Kone XTD Dissector
 Wireshark dissector for Roccat Kone XTD USB protocol
 
 Dissector currently dissects the following message types*:
