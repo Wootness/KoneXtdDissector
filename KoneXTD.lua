@@ -199,66 +199,6 @@ local function dissect_scrolling_byte(tvbuf,pktinfo,tree,offset)
     end
 end
 
-local function dissect_konextd_msg_3(tvbuf,pktinfo,tree)
-    pktinfo.cols.info:set("Kone XTD Statistics report ")
-    offset = 1;
-    tree:add_le(unused_byte, tvbuf:range(offset,1))
-    offset = offset + 1;
-
-    ti = tree:add_le(msg_3_submessage_type, tvbuf:range(offset,1))
-    value = tvbuf:range(offset,1):uint()
-    offset = offset + 1;
-
-    if value == 0xea then
-        -- Movement statistics
-        ti:append_text(" (Movement statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(distance,tvbuf:range(offset,1))
-        if value == 0x0a then
-            ti:append_text(" (Mouse moved another 0.25 m)")
-        else
-            ti:append_text(" (Unknown value)")
-        end
-    elseif value == 0xe1 then
-        ti:append_text(" (Right clicks statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(clicks,tvbuf:range(offset,1))
-        ti:append_text(" (Button clicked another " .. value .. " times)")
-    elseif value == 0xe2 then
-        ti:append_text(" (Left clicks statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(clicks,tvbuf:range(offset,1))
-        ti:append_text(" (Button clicked another " .. value .. " times)")
-    elseif value == 0xe3 then
-        ti:append_text(" (Middle clicks statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(clicks,tvbuf:range(offset,1))
-        ti:append_text(" (Button clicked another " .. value .. " times)")
-    elseif value == 0xe4 then
-        ti:append_text(" (Mouse 4 clicks statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(clicks,tvbuf:range(offset,1))
-        ti:append_text(" (Button clicked another " .. value .. " times)")
-    elseif value == 0xe5 then
-        ti:append_text(" (Mouse 5 clicks statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(clicks,tvbuf:range(offset,1))
-        ti:append_text(" (Button clicked another " .. value .. " times)")
-    elseif value == 0xe6 then
-        ti:append_text(" (Up scrolling statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(scrolls,tvbuf:range(offset,1))
-        ti:append_text(" (Scrolled another " .. value .. " times)")
-        dissect_scrolling_byte(tvbuf,pktinfo,tree,offset + 3)
-    elseif value == 0xe7 then
-        ti:append_text(" (Down scrolling statistics)")
-        value = tvbuf:range(offset,1):int()
-        ti = tree:add_le(scrolls,tvbuf:range(offset,1))
-        ti:append_text(" (Scrolled another " .. value .. " times)")
-        dissect_scrolling_byte(tvbuf,pktinfo,tree,offset + 3)
-    end
-end
-
 local function dissect_led_color(tvbuf,pktinfo,tree,offest,led_num)
     ti = tree:add(ledcolor,tvbuf:range(offset,4))
     ti:add_le(colorindex, tvbuf:range(offset,1))
@@ -281,7 +221,6 @@ local function dissect_led_color(tvbuf,pktinfo,tree,offest,led_num)
 end
 
 local function dissect_key_assignment(tvbuf,pktinfo,tree,offest,key_num)
-    -- TODO Resolve key_num to button
     ti = tree:add(keyid,tvbuf:range(offset,3))
     ti:set_text("Key " .. key_num .. " (" .. key_id_vals[key_num] ..")")
 
@@ -304,103 +243,6 @@ local function sum_bytes(pktinfo,tvb)
         total = total+ tvb:range(i,1):uint()
     end
     return total
-end
-
-local function dissect_konextd_msg_7(tvbuf,pktinfo,tree)
-    offset = 2
-    value = tvbuf:range(offset,1):uint()
-    tree:add_le(profile, tvbuf:range(offset,1))
-    pktinfo.cols.info:set("Updating Kone XTD Profile " .. value .." buttons assignment")
-    offset = offset + 1
-
-    -- Standard Button Assignments
-    subtree = tree:add(standardkeys,tvbuf:range(offset,36))
-    for key_num=1, 12 do
-        offset = dissect_key_assignment(tvbuf,pktinfo,subtree,offest,key_num)
-    end
-    
-    -- Easy-Shift Button Assignments
-    subtree = tree:add(easyshiftkeys,tvbuf:range(offset,36))
-    for key_num=1, 12 do
-        offset = dissect_key_assignment(tvbuf,pktinfo,subtree,offest,key_num)
-    end
-
-    calc_sum = sum_bytes(pktinfo,tvbuf)
-    reported_sum = tvbuf:range(offset,2):le_uint()
-    ti = tree:add_le(checksum, tvbuf:range(offset,2))
-    if calc_sum == reported_sum then
-        ti:append_text(" (Correct)")
-    else
-        --TODO: Expert info
-        ti:append_text(" (Incorrect, should be 0x" .. string.format("%04x",tvbuf:range(offset,2):le_uint()) .. ")")
-    end
-end
-
-local function dissect_konextd_msg_6(tvbuf,pktinfo,tree)
-    offset = 2
-    tree:add_le(profile, tvbuf:range(offset,1))
-    value = tvbuf:range(offset,1):uint()
-    pktinfo.cols.info:set("Updating Kone XTD Profile " .. value .. " settings")
-    offset = offset + 1
-
-    tree:add_le(advsense, tvbuf:range(offset,1))
-    offset = offset + 1
-
-    tree:add_le(xsense, tvbuf:range(offset,1))
-    offset = offset + 1
-
-    tree:add_le(ysense, tvbuf:range(offset,1))
-    offset = offset + 1
-
-    tree:add_le(dpi1on, tvbuf:range(offset,1))
-    tree:add_le(dpi2on, tvbuf:range(offset,1))
-    tree:add_le(dpi3on, tvbuf:range(offset,1))
-    tree:add_le(dpi4on, tvbuf:range(offset,1))
-    tree:add_le(dpi5on, tvbuf:range(offset,1))
-    offset = offset + 12
-
-    tree:add_le(alienfxdisabled, tvbuf:range(offset,1))
-    value = tvbuf:range(offset,1):uint()
-    if value == 0 then 
-        enabled = 1
-    else
-        enabled = 0
-    end
-    ti = tree:add_le(alienfxenabled, tvbuf:range(offset,1), enabled)
-    ti:set_generated()
-    offset = offset + 1
-    tree:add_le(pollrate, tvbuf:range(offset,1))
-    offset = offset + 1
-
-
-    tree:add_le(led1on, tvbuf:range(offset,1))
-    tree:add_le(led2on, tvbuf:range(offset,1))
-    tree:add_le(led3on, tvbuf:range(offset,1))
-    tree:add_le(led4on, tvbuf:range(offset,1))
-    offset = offset + 2;
-    
-    tree:add_le(colorfloweffect, tvbuf:range(offset,1))
-    offset = offset + 1
-    
-    tree:add_le(lighteffect, tvbuf:range(offset,1))
-    offset = offset + 1
-
-    tree:add_le(effectspeed, tvbuf:range(offset,1))
-    offset = offset + 1
-    for led_num=1,4 do
-        offset = dissect_led_color(tvbuf,pktinfo,tree,offset, led_num)
-    end
-    
-    -- Checking checksum: Last 2 bytes should contain SUM of all previous bytes
-    calc_sum = sum_bytes(pktinfo,tvbuf)
-    reported_sum = tvbuf:range(offset,2):le_uint()
-    ti = tree:add_le(checksum, tvbuf:range(offset,2))
-    if calc_sum == reported_sum then
-        ti:append_text(" (Correct)")
-    else
-        --TODO: Expert info
-        ti:append_text(" (Incorrect, should be 0x" .. string.format("%04x",tvbuf:range(offset,2):le_uint()) .. ")")
-    end
 end
 
 local function dissect_konextd_msg_1(tvbuf,pktinfo,tree)
@@ -462,6 +304,175 @@ local function dissect_konextd_msg_1(tvbuf,pktinfo,tree)
     return pktlen;
 end
 
+local function dissect_konextd_msg_3(tvbuf,pktinfo,tree)
+    pktinfo.cols.info:set("Kone XTD Statistics report ")
+    offset = 1;
+    tree:add_le(unused_byte, tvbuf:range(offset,1))
+    offset = offset + 1;
+
+    ti = tree:add_le(msg_3_submessage_type, tvbuf:range(offset,1))
+    value = tvbuf:range(offset,1):uint()
+    offset = offset + 1;
+
+    if value == 0xea then
+        -- Movement statistics
+        ti:append_text(" (Movement statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(distance,tvbuf:range(offset,1))
+        if value == 0x0a then
+            ti:append_text(" (Mouse moved another 0.25 m)")
+        else
+            ti:append_text(" (Unknown value)")
+        end
+    elseif value == 0xe1 then
+        ti:append_text(" (Right clicks statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(clicks,tvbuf:range(offset,1))
+        ti:append_text(" (Button clicked another " .. value .. " times)")
+    elseif value == 0xe2 then
+        ti:append_text(" (Left clicks statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(clicks,tvbuf:range(offset,1))
+        ti:append_text(" (Button clicked another " .. value .. " times)")
+    elseif value == 0xe3 then
+        ti:append_text(" (Middle clicks statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(clicks,tvbuf:range(offset,1))
+        ti:append_text(" (Button clicked another " .. value .. " times)")
+    elseif value == 0xe4 then
+        ti:append_text(" (Mouse 4 clicks statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(clicks,tvbuf:range(offset,1))
+        ti:append_text(" (Button clicked another " .. value .. " times)")
+    elseif value == 0xe5 then
+        ti:append_text(" (Mouse 5 clicks statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(clicks,tvbuf:range(offset,1))
+        ti:append_text(" (Button clicked another " .. value .. " times)")
+    elseif value == 0xe6 then
+        ti:append_text(" (Up scrolling statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(scrolls,tvbuf:range(offset,1))
+        ti:append_text(" (Scrolled another " .. value .. " times)")
+        dissect_scrolling_byte(tvbuf,pktinfo,tree,offset + 3)
+    elseif value == 0xe7 then
+        ti:append_text(" (Down scrolling statistics)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(scrolls,tvbuf:range(offset,1))
+        ti:append_text(" (Scrolled another " .. value .. " times)")
+        dissect_scrolling_byte(tvbuf,pktinfo,tree,offset + 3)
+    end
+end
+
+local function dissect_konextd_msg_5(tvbuf,pktinfo,tree)
+    offset = 2
+    value = tvbuf:range(offset,1):uint() + 1
+    ti = tree:add_le(profile, tvbuf:range(offset,1))
+    ti:append_text(" (Profile " .. (value) .. ")")
+    pktinfo.cols.info:set("Kone XTD Change to Profile " .. value)
+end
+
+
+local function dissect_konextd_msg_6(tvbuf,pktinfo,tree)
+    offset = 2
+    value = tvbuf:range(offset,1):uint() + 1
+    ti = tree:add_le(profile, tvbuf:range(offset,1))
+    ti:append_text(" (Profile " .. (value) .. ")")
+    pktinfo.cols.info:set("Updating Kone XTD Profile " .. value .. " settings")
+    offset = offset + 1
+
+    tree:add_le(advsense, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    tree:add_le(xsense, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    tree:add_le(ysense, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    tree:add_le(dpi1on, tvbuf:range(offset,1))
+    tree:add_le(dpi2on, tvbuf:range(offset,1))
+    tree:add_le(dpi3on, tvbuf:range(offset,1))
+    tree:add_le(dpi4on, tvbuf:range(offset,1))
+    tree:add_le(dpi5on, tvbuf:range(offset,1))
+    offset = offset + 12
+
+    -- TODO: DPI Values go here
+
+    tree:add_le(alienfxdisabled, tvbuf:range(offset,1))
+    value = tvbuf:range(offset,1):uint()
+    if value == 0 then 
+        enabled = 1
+    else
+        enabled = 0
+    end
+    ti = tree:add_le(alienfxenabled, tvbuf:range(offset,1), enabled)
+    ti:set_generated()
+    offset = offset + 1
+    tree:add_le(pollrate, tvbuf:range(offset,1))
+    offset = offset + 1
+
+
+    tree:add_le(led1on, tvbuf:range(offset,1))
+    tree:add_le(led2on, tvbuf:range(offset,1))
+    tree:add_le(led3on, tvbuf:range(offset,1))
+    tree:add_le(led4on, tvbuf:range(offset,1))
+    offset = offset + 2;
+    
+    tree:add_le(colorfloweffect, tvbuf:range(offset,1))
+    offset = offset + 1
+    
+    tree:add_le(lighteffect, tvbuf:range(offset,1))
+    offset = offset + 1
+
+    tree:add_le(effectspeed, tvbuf:range(offset,1))
+    offset = offset + 1
+    for led_num=1,4 do
+        offset = dissect_led_color(tvbuf,pktinfo,tree,offset, led_num)
+    end
+    
+    -- Checking checksum: Last 2 bytes should contain SUM of all previous bytes
+    calc_sum = sum_bytes(pktinfo,tvbuf)
+    reported_sum = tvbuf:range(offset,2):le_uint()
+    ti = tree:add_le(checksum, tvbuf:range(offset,2))
+    if calc_sum == reported_sum then
+        ti:append_text(" (Correct)")
+    else
+        --TODO: Expert info
+        ti:append_text(" (Incorrect, should be 0x" .. string.format("%04x",tvbuf:range(offset,2):le_uint()) .. ")")
+    end
+end
+
+local function dissect_konextd_msg_7(tvbuf,pktinfo,tree)
+    offset = 2
+    value = tvbuf:range(offset,1):uint() + 1
+    ti = tree:add_le(profile, tvbuf:range(offset,1))
+    ti:append_text(" (Profile " .. (value) .. ")")
+    pktinfo.cols.info:set("Updating Kone XTD Profile " .. value .." buttons assignment")
+    offset = offset + 1
+
+    -- Standard Button Assignments
+    subtree = tree:add(standardkeys,tvbuf:range(offset,36))
+    for key_num=1, 12 do
+        offset = dissect_key_assignment(tvbuf,pktinfo,subtree,offest,key_num)
+    end
+    
+    -- Easy-Shift Button Assignments
+    subtree = tree:add(easyshiftkeys,tvbuf:range(offset,36))
+    for key_num=1, 12 do
+        offset = dissect_key_assignment(tvbuf,pktinfo,subtree,offest,key_num)
+    end
+
+    calc_sum = sum_bytes(pktinfo,tvbuf)
+    reported_sum = tvbuf:range(offset,2):le_uint()
+    ti = tree:add_le(checksum, tvbuf:range(offset,2))
+    if calc_sum == reported_sum then
+        ti:append_text(" (Correct)")
+    else
+        --TODO: Expert info
+        ti:append_text(" (Incorrect, should be 0x" .. string.format("%04x",tvbuf:range(offset,2):le_uint()) .. ")")
+    end
+end
 
 local function heur_dissect_interrupt_konextd(tvbuf,pktinfo,root)
     pktlen = tvbuf:len()
@@ -489,7 +500,8 @@ end
 
 local function heur_dissect_control_konextd(tvbuf,pktinfo,root)
     pktlen = tvbuf:len()
-    if pktlen ~= 43 and pktlen ~= 77 then
+    is_msg_5 = (pktlen == 3) and (tvbuf:range(0,1):int() == 5) and (tvbuf:range(1,1):int() == 3)
+    if is_msg_5 == false and pktlen ~= 43 and pktlen ~= 77 then
         return 0;
     end
 
@@ -500,7 +512,9 @@ local function heur_dissect_control_konextd(tvbuf,pktinfo,root)
 
     ti = tree:add_le(message_type, tvbuf:range(offset,1))
     value = tvbuf:range(offset,1):int()
-    if value == 0x06 then
+    if value == 0x05 then
+        dissect_konextd_msg_5(tvbuf,pktinfo,tree)
+    elseif value == 0x06 then
         dissect_konextd_msg_6(tvbuf,pktinfo,tree)
     elseif value == 0x07 then
         dissect_konextd_msg_7(tvbuf,pktinfo,tree)
