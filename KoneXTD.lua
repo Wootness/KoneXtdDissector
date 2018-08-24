@@ -88,6 +88,7 @@ local led3on = ProtoField.new("Led 3 (Top Right) On", "konextd.led3on", ftypes.U
 local led4on = ProtoField.new("Led 4 (Bottom Right) On", "konextd.led4on", ftypes.UINT8, bool_vals, base.DEC, 0x08)
 
 -- DPI settings
+local dpisetting = ProtoField.new("DPI Setting Index", "konextd.dpisetting", ftypes.UINT8)
 local dpi1on = ProtoField.new("DPI Setting 1 On", "konextd.led1on", ftypes.UINT8, bool_vals, base.DEC, 0x01)
 local dpi2on = ProtoField.new("DPI Setting 2 On", "konextd.dpi2on", ftypes.UINT8, bool_vals, base.DEC, 0x02)
 local dpi3on = ProtoField.new("DPI Setting 3 On", "konextd.dpi3on", ftypes.UINT8, bool_vals, base.DEC, 0x04)
@@ -150,6 +151,7 @@ roccat_kone_xtd.fields = { data,
     m5button,
     m4button,
     profile,
+    dpisetting,
     dpi1on,
     dpi2on,
     dpi3on,
@@ -305,7 +307,7 @@ local function dissect_konextd_msg_1(tvbuf,pktinfo,tree)
 end
 
 local function dissect_konextd_msg_3(tvbuf,pktinfo,tree)
-    pktinfo.cols.info:set("Kone XTD Statistics report ")
+    pktinfo.cols.info:set("Kone XTD Usage report")
     offset = 1;
     tree:add_le(unused_byte, tvbuf:range(offset,1))
     offset = offset + 1;
@@ -314,9 +316,22 @@ local function dissect_konextd_msg_3(tvbuf,pktinfo,tree)
     value = tvbuf:range(offset,1):uint()
     offset = offset + 1;
 
-    if value == 0xea then
+    if value == 0x20 then
+        -- Profile Changed
+        ti:append_text(" (Active profile changed)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(profile,tvbuf:range(offset,1))
+        pktinfo.cols.info:append(", Active Profile changed to " .. value)
+    elseif value == 0xb0 then
+        -- DPI Setting Changed
+        ti:append_text(" (DPI setting changed)")
+        value = tvbuf:range(offset,1):int()
+        ti = tree:add_le(dpisetting,tvbuf:range(offset,1))
+        pktinfo.cols.info:append(", Active DPI Setting changed to " .. value)
+    elseif value == 0xea then
         -- Movement statistics
         ti:append_text(" (Movement statistics)")
+        pktinfo.cols.info:append(", Movement statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(distance,tvbuf:range(offset,1))
         if value == 0x0a then
@@ -326,41 +341,51 @@ local function dissect_konextd_msg_3(tvbuf,pktinfo,tree)
         end
     elseif value == 0xe1 then
         ti:append_text(" (Right clicks statistics)")
+        pktinfo.cols.info:append(", Right clicks statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(clicks,tvbuf:range(offset,1))
         ti:append_text(" (Button clicked another " .. value .. " times)")
     elseif value == 0xe2 then
         ti:append_text(" (Left clicks statistics)")
+        pktinfo.cols.info:append(", Left clicks statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(clicks,tvbuf:range(offset,1))
         ti:append_text(" (Button clicked another " .. value .. " times)")
     elseif value == 0xe3 then
         ti:append_text(" (Middle clicks statistics)")
+        pktinfo.cols.info:append(", Middle clicks statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(clicks,tvbuf:range(offset,1))
         ti:append_text(" (Button clicked another " .. value .. " times)")
     elseif value == 0xe4 then
         ti:append_text(" (Mouse 4 clicks statistics)")
+        pktinfo.cols.info:append(", Mouse 4 clicks statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(clicks,tvbuf:range(offset,1))
         ti:append_text(" (Button clicked another " .. value .. " times)")
     elseif value == 0xe5 then
         ti:append_text(" (Mouse 5 clicks statistics)")
+        pktinfo.cols.info:append(", Mouse 5 clicks statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(clicks,tvbuf:range(offset,1))
         ti:append_text(" (Button clicked another " .. value .. " times)")
     elseif value == 0xe6 then
         ti:append_text(" (Up scrolling statistics)")
+        pktinfo.cols.info:append(", Up scrolling statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(scrolls,tvbuf:range(offset,1))
         ti:append_text(" (Scrolled another " .. value .. " times)")
         dissect_scrolling_byte(tvbuf,pktinfo,tree,offset + 3)
     elseif value == 0xe7 then
         ti:append_text(" (Down scrolling statistics)")
+        pktinfo.cols.info:append(", Down scrolling statistics")
         value = tvbuf:range(offset,1):int()
         ti = tree:add_le(scrolls,tvbuf:range(offset,1))
         ti:append_text(" (Scrolled another " .. value .. " times)")
         dissect_scrolling_byte(tvbuf,pktinfo,tree,offset + 3)
+    else
+        ti:append_text(" (Unknown)")
+        pktinfo.cols.info:append(", Unknown subtype")
     end
 end
 
@@ -395,9 +420,11 @@ local function dissect_konextd_msg_6(tvbuf,pktinfo,tree)
     tree:add_le(dpi3on, tvbuf:range(offset,1))
     tree:add_le(dpi4on, tvbuf:range(offset,1))
     tree:add_le(dpi5on, tvbuf:range(offset,1))
-    offset = offset + 12
+    offset = offset + 6
 
     -- TODO: DPI Values go here
+    tree:add_le(dpisetting, tvbuf:range(offset,1))
+    offset = offset + 6
 
     tree:add_le(alienfxdisabled, tvbuf:range(offset,1))
     value = tvbuf:range(offset,1):uint()
