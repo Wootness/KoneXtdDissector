@@ -4,6 +4,7 @@ Wireshark dissector for Roccat Kone XTD USB protocol
 Dissector currently dissects the following message types*:
 * Message Type 1: General mouse interrupts (moving,clicking,scrolling)
 * Message Type 3: Statistics reports (Distance moved, Amount of clicks/scrolls)
+* Message Type 5: Set active profile
 * Message Type 6: Profile settings updates (colors changes, DPI settings etc)
 * Message Type 7: Profile buttons updates (Standard/Easy-Shift Button Assignment)
 
@@ -18,11 +19,11 @@ Place lua file in:
 
 (new wireshark versions)
 
-\*wireshark dir\*\\plugins\\\*version number\*\epan\
+wireshark\\plugins\\\*version number\*\epan\
 
 (Older wireshark versions)
 
-\*wireshark dir\*\\plugins\\\*version number\*\
+wireshark\\plugins\\\*version number\*\
 
 Use USBPcap to capture your Roccat Kone XTD's usb communication
 
