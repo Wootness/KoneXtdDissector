@@ -19,11 +19,11 @@ Place lua file in:
 
 (new wireshark versions)
 ```
-wireshark\\plugins\\\*version number\*\epan\
+wireshark\plugins\*version number*\epan\
 ```
 (Older wireshark versions)
 ```
-wireshark\\plugins\\\*version number\*\
+wireshark\plugins\*version number*\
 ```
 Use USBPcap to capture your Roccat Kone XTD's usb communication
 
